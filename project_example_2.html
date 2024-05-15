@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<!-- Load d3.js -->
+<script src="https://d3js.org/d3.v4.js"></script>
+
+<label for="birthday">Date filter:</label>
+<input type="date" id="Start_Date" placeholder="first date">
+<input type="date" id="End_Date" placeholder="second date">
+<button id="submit">Submit</button>
+<!-- Create a div where the graph will take place -->
+<div id="my_dataviz"></div>
+
+<script>
+  // set the dimensions and margins of the graph
+  var margin = { top: 20, right: 30, bottom: 60, left: 60 },
+    width = 600 - margin.left - margin.right,
+    height = 400 - margin.top - margin.bottom;
+
+  // append the svg object to the body of the page
+  var svg = d3.select("#my_dataviz")
+    .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  // Function to parse dates and numbers
+  var parseDate = d3.timeParse("%Y-%m-%d");
+  var parseNumber = d3.format(".1f");
+
+  // Read the data
+  d3.csv("https://raw.githubusercontent.com/isamwata/AI-Project/main/dataviz_forecast.csv", function (data) {
+    data.forEach(function (d) {
+      d.Year_Month = parseDate(d.Year_Month);
+      d.OrderQuantity = +d.OrderQuantity;
+      d.Forecast = +d.Forecast;
+    });
+
+    // Initial rendering
+    drawChart(data);
+
+    // Event listener for submit button
+    d3.select("#submit").on("click", function () {
+      var startDate = parseDate(document.getElementById("Start_Date").value);
+      var endDate = parseDate(document.getElementById("End_Date").value);
+
+      // Filter data based on date range
+      var filteredData = data.filter(function (d) {
+        return (d.Year_Month >= startDate && d.Year_Month <= endDate);
+      });
+
+      // Redraw chart with filtered data
+      drawChart(filteredData);
+    });
+  });
+
+  function drawChart(data) {
+    // Clear previous chart
+    svg.selectAll("*").remove();
+
+    // Add X axis
+    var x = d3.scaleTime()
+      .domain(d3.extent(data, function (d) { return d.Year_Month; }))
+      .range([0, width]);
+    svg.append("g")
+      .attr("transform", "translate(0," + height + ")")
+      .call(d3.axisBottom(x));
+
+    // Add Y axis
+    var y = d3.scaleLinear()
+      .domain([0, d3.max(data, function (d) { return Math.max(d.OrderQuantity, d.Forecast); })])
+      .range([height, 0]);
+    svg.append("g")
+      .call(d3.axisLeft(y));
+
+    // Add the line for OrderQuantity
+    svg.append("path")
+      .datum(data)
+      .attr("fill", "none")
+      .attr("stroke", "steelblue")
+      .attr("stroke-width", 1.5)
+      .attr("d", d3.line()
+        .x(function (d) { return x(d.Year_Month) })
+        .y(function (d) { return y(d.OrderQuantity) })
+      );
+
+    // Add the line for Forecast
+    svg.append("path")
+      .datum(data)
+      .attr("fill", "none")
+      .attr("stroke", "red")
+      .attr("stroke-width", 1.5)
+      .attr("d", d3.line()
+        .x(function (d) { return x(d.Year_Month) })
+        .y(function (d) { return y(d.Forecast) })
+        .curve(d3.curveCatmullRom.alpha(0.5))
+      );
+
+    // Add legends
+    var legend = svg.append("g")
+      .attr("transform", "translate(0," + (height - 40) + ")");  // Adjusting transform to place legend within chart area
+
+    legend.append("rect")
+      .attr("x", 0)
+      .attr("y", 0)
+      .attr("width", 10)
+      .attr("height", 10)
+      .attr("fill", "steel
